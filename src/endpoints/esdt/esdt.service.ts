@@ -8,7 +8,7 @@ import { Constants } from "src/utils/constants";
 import { TokenUtils } from "src/utils/tokens.utils";
 import { ApiConfigService } from "../../common/api-config/api.config.service";
 import { CachingService } from "../../common/caching/caching.service";
-import { GatewayService } from "../../common/gateway/gateway.service";
+import { ProxyService } from "src/endpoints/proxy/proxy.service";
 import { GENESIS_TIMESTAMP_SERVICE, GenesisTimestampInterface } from "../../utils/genesis.timestamp.interface";
 
 @Injectable()
@@ -16,7 +16,7 @@ export class EsdtService {
   private readonly logger: Logger
 
   constructor(
-    private readonly gatewayService: GatewayService,
+    private readonly proxyService: ProxyService,
     private readonly apiConfigService: ApiConfigService,
     private readonly cachingService: CachingService,
     private readonly vmQueryService: VmQueryService,
@@ -29,7 +29,7 @@ export class EsdtService {
 
   private async getAllEsdtsForAddressRaw(address: string): Promise<{ [ key: string]: any }> {
     try {
-      let esdtResult = await this.gatewayService.get(`address/${address}/esdt`);
+      let esdtResult = await this.proxyService.getEsdtTokens(address);
       return esdtResult.esdts;
     } catch (error: any) {
       let errorMessage = error?.response?.data?.error;
@@ -84,8 +84,7 @@ export class EsdtService {
   async getAllEsdtTokensRaw(): Promise<TokenDetailed[]> {
     let tokensIdentifiers: string[];
     try {
-      const getFungibleTokensResult = await this.gatewayService.get('network/esdt/fungible-tokens');
-
+      const getFungibleTokensResult = await this.proxyService.getFungibleTokens();
       tokensIdentifiers = getFungibleTokensResult.tokens;
     } catch (error) {
       this.logger.error('Error when getting fungible tokens from gateway');
@@ -95,7 +94,7 @@ export class EsdtService {
 
     let tokens = await this.cachingService.batchProcess(
       tokensIdentifiers,
-      token => `token:${token}`,
+      (token: string) => `token:${token}`,
       async (token: string) => await this.getEsdtTokenProperties(token),
       Constants.oneDay()
     );

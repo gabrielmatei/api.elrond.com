@@ -5,7 +5,7 @@ import { Shard } from "./entities/shard";
 import { CachingService } from "src/common/caching/caching.service";
 import { QueryPagination } from "src/common/entities/query.pagination";
 import { Constants } from "src/utils/constants";
-import { GatewayService } from "src/common/gateway/gateway.service";
+import { ProxyService } from "../proxy/proxy.service";
 
 @Injectable()
 export class ShardService {
@@ -14,7 +14,7 @@ export class ShardService {
   constructor(
     private readonly nodeService: NodeService,
     private readonly cachingService: CachingService,
-    private readonly gatewayService: GatewayService
+    private readonly proxyService: ProxyService
   ) {}
 
   async getShards(queryPagination: QueryPagination): Promise<Shard[]> {
@@ -58,7 +58,7 @@ export class ShardService {
   }
 
   async getCurrentNonce(shardId: number): Promise<number> {
-    let shardInfo = await this.gatewayService.get(`network/status/${shardId}`);
+    let shardInfo = await this.proxyService.getNetworkStatus(shardId);
     return shardInfo.status.erd_nonce;
   }
 

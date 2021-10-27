@@ -16,8 +16,8 @@ import { NetworkConfig } from './entities/network.config';
 import { StakeService } from '../stake/stake.service';
 import { DataApiService } from 'src/common/external/data.api.service';
 import { GatewayService } from 'src/common/gateway/gateway.service';
-import { ApiService } from 'src/common/network/api.service';
 import { DataQuoteType } from 'src/common/external/entities/data.quote.type';
+import { ProxyService } from '../proxy/proxy.service';
 
 @Injectable()
 export class NetworkService {
@@ -25,12 +25,12 @@ export class NetworkService {
     private readonly apiConfigService: ApiConfigService,
     private readonly cachingService: CachingService,
     private readonly gatewayService: GatewayService,
+    private readonly proxyService: ProxyService,
     private readonly vmQueryService: VmQueryService,
     private readonly blockService: BlockService,
     private readonly accountService: AccountService,
     private readonly transactionService: TransactionService,
     private readonly dataApiService: DataApiService,
-    private readonly apiService: ApiService,
     @Inject(forwardRef( () => StakeService))
     private readonly stakeService: StakeService
   ) {}
@@ -44,23 +44,17 @@ export class NetworkService {
   }
 
   private async getConstantsRaw(): Promise<NetworkConstants> {
-    const gatewayUrl = this.apiConfigService.getGatewayUrl();
-
     const {
-      data: {
-        data: {
-          config: {
-            erd_chain_id: chainId,
-            // erd_denomination: denomination,
-            erd_gas_per_data_byte: gasPerDataByte,
-            erd_min_gas_limit: minGasLimit,
-            erd_min_gas_price: minGasPrice,
-            erd_min_transaction_version: minTransactionVersion,
-            // erd_round_duration: roundDuration,
-          },
-        },
+      config: {
+        erd_chain_id: chainId,
+        // erd_denomination: denomination,
+        erd_gas_per_data_byte: gasPerDataByte,
+        erd_min_gas_limit: minGasLimit,
+        erd_min_gas_price: minGasPrice,
+        erd_min_transaction_version: minTransactionVersion,
+        // erd_round_duration: roundDuration,
       },
-    } = await this.apiService.get(`${gatewayUrl}/network/config`);
+    } = await this.proxyService.getNetworkConfig();
 
     return {
       chainId,
@@ -80,8 +74,8 @@ export class NetworkService {
         status: { erd_rounds_passed_in_current_epoch },
       },
     ] = await Promise.all([
-      this.gatewayService.get('network/config'),
-      this.gatewayService.get('network/status/4294967295'),
+      this.proxyService.getNetworkConfig(),
+      this.proxyService.getNetworkStatus(this.apiConfigService.getMetaChainShardId())
     ]);
 
     const roundsPassed = erd_rounds_passed_in_current_epoch;
@@ -112,10 +106,8 @@ export class NetworkService {
       priceValue,
       marketCapValue,
     ] = await Promise.all([
-      this.gatewayService.get(
-        `address/${this.apiConfigService.getAuctionContractAddress()}`,
-      ),
-      this.gatewayService.get('network/economics'),
+      this.proxyService.getAccount(this.apiConfigService.getAuctionContractAddress()),
+      this.proxyService.getEconomics(),
       this.vmQueryService.vmQuery(
         this.apiConfigService.getDelegationContractAddress(),
         'getTotalStakeByType',
@@ -174,8 +166,8 @@ export class NetworkService {
       accounts,
       transactions,
     ] = await Promise.all([
-      this.gatewayService.get('network/config'),
-      this.gatewayService.get(`network/status/${metaChainShard}`),
+      this.proxyService.getNetworkConfig(),
+      this.proxyService.getNetworkStatus(metaChainShard),
       this.blockService.getBlocksCount(new BlockFilter()),
       this.accountService.getAccountsCount(),
       this.transactionService.getTransactionCount(new TransactionFilter()),
@@ -203,9 +195,7 @@ export class NetworkService {
     const stake = await this.stakeService.getGlobalStake();
     const {
       account: { balance: stakedBalance },
-    } = await this.gatewayService.get(
-      `address/${this.apiConfigService.getAuctionContractAddress()}`,
-    );
+    } = await this.proxyService.getAccount(this.apiConfigService.getAuctionContractAddress());
     let [activeStake] = await this.vmQueryService.vmQuery(
       this.apiConfigService.getDelegationContractAddress(),
       'getTotalActiveStake',

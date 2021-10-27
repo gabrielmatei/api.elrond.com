@@ -11,7 +11,7 @@ import { Constants } from "src/utils/constants";
 import { AddressUtils } from "src/utils/address.utils";
 import { NetworkService } from "../network/network.service";
 import { RoundUtils } from "src/utils/round.utils";
-import { GatewayService } from "src/common/gateway/gateway.service";
+import { ProxyService } from "../proxy/proxy.service";
 
 @Injectable()
 export class StakeService {
@@ -19,11 +19,11 @@ export class StakeService {
 
   constructor(
     private readonly cachingService: CachingService,
+    private readonly proxyService: ProxyService,
     private readonly vmQueryService: VmQueryService,
     private readonly apiConfigService: ApiConfigService,
     @Inject(forwardRef(() => NodeService))
     private readonly nodeService: NodeService,
-    private readonly gatewayService: GatewayService,
     private readonly networkService: NetworkService,
   ) {
     this.logger = new Logger(StakeService.name);
@@ -47,7 +47,10 @@ export class StakeService {
           erd_total_top_up_value: totalTopUp,        
         },
       },
-    ] = await Promise.all([this.getValidators(), this.gatewayService.get('network/economics')]);
+    ] = await Promise.all([
+      this.getValidators(),
+      this.proxyService.getEconomics()
+    ]);
 
     const totalStaked = BigInt(BigInt(totalBaseStaked) + BigInt(totalTopUp)).toString();
     

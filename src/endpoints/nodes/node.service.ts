@@ -17,11 +17,13 @@ import { AddressUtils } from "src/utils/address.utils";
 import { KeybaseService } from "src/common/keybase/keybase.service";
 import { GatewayService } from "src/common/gateway/gateway.service";
 import { KeybaseState } from "src/common/keybase/entities/keybase.state";
+import { ProxyService } from "../proxy/proxy.service";
 
 @Injectable()
 export class NodeService {
   constructor(
     private readonly gatewayService: GatewayService,
+    private readonly proxyService: ProxyService,
     private readonly vmQueryService: VmQueryService,
     private readonly apiConfigService: ApiConfigService,
     private readonly cachingService: CachingService,
@@ -420,7 +422,7 @@ export class NodeService {
     ] = await Promise.all([
       this.gatewayService.get('node/heartbeatstatus'),
       this.gatewayService.get('validator/statistics'),
-      this.gatewayService.get('network/config')
+      this.proxyService.getNetworkConfig()
     ]);
 
     let nodes: Node[] = [];
